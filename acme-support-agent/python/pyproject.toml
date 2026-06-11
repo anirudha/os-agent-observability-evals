@@ -1,0 +1,50 @@
+[project]
+name = "acme-support-agent"
+version = "0.1.0"
+description = "Example AI agent for the OpenSearch AI observability tutorial."
+requires-python = ">=3.10"
+dependencies = [
+    "opensearch-genai-observability-sdk-py",
+]
+
+[project.optional-dependencies]
+# Each extra pulls in the framework SDK + the matching observability auto-instrumentor.
+openai = [
+    "openai>=1.40",
+    "opensearch-genai-observability-sdk-py[openai]",
+]
+anthropic = [
+    "anthropic>=0.34",
+    "opensearch-genai-observability-sdk-py[anthropic]",
+]
+bedrock = [
+    "boto3>=1.34",
+    "opensearch-genai-observability-sdk-py[bedrock]",
+]
+langchain = [
+    "langchain-openai>=0.2",
+    "langgraph>=0.2",
+    "opensearch-genai-observability-sdk-py[langchain]",
+]
+llamaindex = [
+    "llama-index>=0.11",
+    "llama-index-llms-openai>=0.2",
+    "opensearch-genai-observability-sdk-py[llamaindex]",
+]
+all = [
+    "openai>=1.40",
+    "anthropic>=0.34",
+    "boto3>=1.34",
+    "langchain-openai>=0.2",
+    "langgraph>=0.2",
+    "llama-index>=0.11",
+    "llama-index-llms-openai>=0.2",
+    "opensearch-genai-observability-sdk-py[all]",
+]
+
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools]
+packages = ["acme", "acme.frameworks", "evals"]

@@ -1,0 +1,49 @@
+# OpenTelemetry Collector config for the Acme tutorial.
+# Receives OTLP from the agent, normalizes spans, fans out:
+#   - traces  -> Data Prepper (OTLP gRPC on 21890)
+#   - metrics -> Prometheus (scraped from :8889)
+
+receivers:
+  otlp:
+    protocols:
+      grpc:
+        endpoint: 0.0.0.0:4317
+      http:
+        endpoint: 0.0.0.0:4318
+
+processors:
+  batch:
+    timeout: 1s
+    send_batch_size: 512
+  memory_limiter:
+    check_interval: 1s
+    limit_percentage: 80
+    spike_limit_percentage: 20
+
+exporters:
+  # Traces -> Data Prepper
+  otlp/data-prepper:
+    endpoint: data-prepper:21890
+    tls:
+      insecure: true
+  # Metrics -> exposed for Prometheus to scrape
+  prometheus:
+    endpoint: 0.0.0.0:8889
+    resource_to_telemetry_conversion:
+      enabled: true
+  debug:
+    verbosity: basic
+
+service:
+  telemetry:
+    metrics:
+      address: 0.0.0.0:8888
+  pipelines:
+    traces:
+      receivers: [otlp]
+      processors: [memory_limiter, batch]
+      exporters: [otlp/data-prepper, debug]
+    metrics:
+      receivers: [otlp]
+      processors: [memory_limiter, batch]
+      exporters: [prometheus]

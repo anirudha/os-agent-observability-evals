@@ -1,0 +1,22 @@
+{
+  "name": "acme-support-agent-ts",
+  "version": "0.1.0",
+  "description": "TypeScript (raw OpenTelemetry) example for the OpenSearch AI observability tutorial.",
+  "type": "module",
+  "scripts": {
+    "start": "node --import ./dist/observability.js dist/run.js",
+    "build": "tsc",
+    "dev": "tsx src/run.ts"
+  },
+  "dependencies": {
+    "@opentelemetry/api": "^1.9.0",
+    "@opentelemetry/exporter-trace-otlp-http": "^0.53.0",
+    "@opentelemetry/sdk-node": "^0.53.0",
+    "@opentelemetry/semantic-conventions": "^1.27.0",
+    "openai": "^4.60.0"
+  },
+  "devDependencies": {
+    "tsx": "^4.19.0",
+    "typescript": "^5.5.0"
+  }
+}

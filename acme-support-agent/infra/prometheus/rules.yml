@@ -1,0 +1,50 @@
+# RED metrics recording rules + SLO burn-rate alerts for the Acme Support Agent.
+# These back the "monitor production" step of the tutorial (blog Part 7).
+#
+# Metric names assume the agent emits OTel metrics that the collector exports
+# under the gen_ai.* namespace. Adjust the source metric names to match your
+# instrumentation if they differ.
+
+groups:
+  - name: acme-red-metrics
+    interval: 15s
+    rules:
+      # Rate: agent invocations per second
+      - record: acme:agent_requests:rate5m
+        expr: sum(rate(gen_ai_client_operation_duration_count[5m])) by (gen_ai_agent_name)
+
+      # Errors: error ratio per agent
+      - record: acme:agent_errors:ratio5m
+        expr: |
+          sum(rate(gen_ai_client_operation_duration_count{error_type!=""}[5m])) by (gen_ai_agent_name)
+          /
+          sum(rate(gen_ai_client_operation_duration_count[5m])) by (gen_ai_agent_name)
+
+      # Duration: p95 latency per agent (seconds)
+      - record: acme:agent_latency:p95_5m
+        expr: |
+          histogram_quantile(0.95,
+            sum(rate(gen_ai_client_operation_duration_bucket[5m])) by (le, gen_ai_agent_name))
+
+      # Cost proxy: output tokens per second per model
+      - record: acme:tokens_output:rate5m
+        expr: sum(rate(gen_ai_client_token_usage_sum{gen_ai_token_type="output"}[5m])) by (gen_ai_request_model)
+
+  - name: acme-slo-alerts
+    rules:
+      # SLO: 95% of support answers under 4s. Alert on fast burn of the error budget.
+      - alert: AcmeLatencySLOFastBurn
+        expr: acme:agent_latency:p95_5m{gen_ai_agent_name="acme-support-agent"} > 4
+        for: 5m
+        labels: { severity: page }
+        annotations:
+          summary: "Acme agent p95 latency above 4s SLO"
+          description: "p95 latency is {{ $value }}s for {{ $labels.gen_ai_agent_name }}."
+
+      - alert: AcmeErrorRateHigh
+        expr: acme:agent_errors:ratio5m{gen_ai_agent_name="acme-support-agent"} > 0.05
+        for: 10m
+        labels: { severity: page }
+        annotations:
+          summary: "Acme agent error ratio above 5%"
+          description: "Error ratio is {{ $value | humanizePercentage }}."
