@@ -59,6 +59,21 @@ The important part for this tutorial: **the agent logic and the observability co
 once.** Only the model/tool-calling layer changes per framework — and the SDK instruments all
 of them the same way.
 
+> **Run it yourself.** Everything in this post is a working repo:
+> [github.com/anirudha/os-agent-observability-evals](https://github.com/anirudha/os-agent-observability-evals).
+> The main `acme-support-agent/` folder shows every framework in one place. If you'd rather start
+> from a single focused flow, there are standalone variants that all share one core
+> (`acme-shared/` — the tools, observability wiring, dataset, and eval criteria), so the only
+> thing that changes between them is the framework or the eval library:
+>
+> | Variant | Framework | Eval layer |
+> |---|---|---|
+> | `acme-support-agent-py-langgraph` | LangGraph | native SDK |
+> | `acme-support-agent-py-strands` | Strands Agents | native SDK |
+> | `acme-support-agent-py-langgraph-deepeval` | LangGraph | DeepEval |
+> | `acme-support-agent-py-langgraph-ragas` | LangGraph | Ragas |
+> | `acme-support-agent-agentcore` | Bedrock AgentCore Runtime | native SDK |
+
 ---
 
 ## Part 1 — Define goals first
@@ -181,12 +196,28 @@ That's the entire integration. The agent body is the same code you already had.
   `[openai]` extra traces both the chat calls and tool dispatch.
 - **Anthropic** — `client.messages.create(...)` with `tools=[...]`; install `[anthropic]`.
 - **Bedrock** — `bedrock_runtime.converse(...)` with `toolConfig`; install `[bedrock]`.
-- **LangChain** — your `AgentExecutor` / LCEL chain; install `[langchain]` and the callback
-  handler is registered automatically.
+- **LangChain / LangGraph** — your `AgentExecutor`, LCEL chain, or `create_react_agent` graph;
+  install `[langchain]` and the callback handler is registered automatically.
 - **LlamaIndex** — your `ReActAgent` / query engine; install `[llamaindex]`.
+- **Strands Agents** — hand the SDK your tools + system prompt and it runs the loop; Strands
+  also emits OTel spans natively, so its telemetry composes with the OpenSearch SDK.
 
 In every case `register()` + `@observe` is identical. Acme's three tools and goals don't
-change — only the SDK call to the model does.
+change — only the SDK call to the model does. That's exactly how the
+[standalone variants](https://github.com/anirudha/os-agent-observability-evals) are built: one
+shared `acme-shared/` core (tools, observability, dataset, criteria), and a per-variant agent
+file that's the only thing that differs. Compare
+[`acme_shared/langgraph_agent.py`](https://github.com/anirudha/os-agent-observability-evals/blob/main/acme-shared/acme_shared/langgraph_agent.py)
+with the Strands
+[`strands_agent.py`](https://github.com/anirudha/os-agent-observability-evals/blob/main/acme-support-agent-py-strands/strands_agent.py)
+to see how little changes.
+
+> **Deploying to a managed runtime?** The
+> [`acme-support-agent-agentcore`](https://github.com/anirudha/os-agent-observability-evals/tree/main/acme-support-agent-agentcore)
+> variant wraps the same agent in an **Amazon Bedrock AgentCore Runtime** `@app.entrypoint`.
+> `register()` is called once at cold start, so every invocation the runtime serves is one
+> `invoke_agent` trace — instrumentation survives the move from laptop to managed endpoint
+> unchanged.
 
 ### 3b. TypeScript / Node — the OpenTelemetry interim path
 
@@ -399,10 +430,34 @@ The loop: **run evals → read the failures in Dashboards → fix the prompt/too
 Because scores are emitted as spans, "did v2 of the prompt regress on cost or correctness?" is
 just another PPL query over your eval runs.
 
-> **Already invested in an external eval library?** Ragas, DeepEval, Promptfoo, and OpenAI
-> Evals all work fine alongside this — emit their results as `score()` calls (or raw OTel
-> metrics) so the numbers still land next to your traces instead of in a separate silo. But for
-> a greenfield agent, the native path keeps everything in one place.
+### Bring your own eval library
+
+Already invested in **DeepEval**, **Ragas**, Promptfoo, or OpenAI Evals? You don't have to
+choose between them and the observability stack — emit their results as `score()` calls so the
+numbers land next to your traces instead of in a separate silo.
+
+The repo shows this twice, running the **identical LangGraph agent and dataset** through two
+different eval libraries:
+
+- [`acme-support-agent-py-langgraph-deepeval`](https://github.com/anirudha/os-agent-observability-evals/tree/main/acme-support-agent-py-langgraph-deepeval)
+  — DeepEval's `AnswerRelevancyMetric` + `ToolCorrectnessMetric`, emitted as
+  `deepeval.*` scores.
+- [`acme-support-agent-py-langgraph-ragas`](https://github.com/anirudha/os-agent-observability-evals/tree/main/acme-support-agent-py-langgraph-ragas)
+  — Ragas' `AspectCritic("correctness")` + tool-call accuracy, emitted as `ragas.*` scores.
+
+The pattern is the same in both:
+
+```python
+from acme_shared import score  # the SDK's score(), re-exported
+
+result = deepeval_metric.measure(test_case)   # or ragas single_turn_score(...)
+score(name="deepeval.answer_relevancy", value=float(result))   # lands on the live trace
+```
+
+Because the dataset and golden paths are shared, you can run the native, DeepEval, and Ragas
+runners back to back and compare what each tells you about the same agent. For a greenfield
+agent the native path keeps everything in one place; for an existing eval pipeline, this is how
+you keep your library and still get one trace store.
 
 ---
 
@@ -419,6 +474,12 @@ register(
     service_name="acme-support-agent",
 )
 ```
+
+If you deploy to a managed runtime like **Bedrock AgentCore**, this is the only change — the
+[AgentCore variant](https://github.com/anirudha/os-agent-observability-evals/tree/main/acme-support-agent-agentcore)
+calls `register()` once at cold start and sets `OTEL_EXPORTER_OTLP_TRACES_ENDPOINT` to the
+in-VPC collector, so the same `invoke_agent` traces you debugged locally now flow from
+production.
 
 What to watch once you're live:
 
@@ -461,10 +522,15 @@ journey is a loop, not a line.
 | 3 | Instrumented your framework | `register()` + `@observe`, any of 20+ libs |
 | 4 | Verified data lands correctly | `invoke_agent → chat → execute_tool` by `traceId` |
 | 5 | Observed and debugged | trace trees, slow/error spans, token usage |
-| 6 | Evaluated against a dataset | `score()`, golden-path for order #1007 |
+| 6 | Evaluated against a dataset | `score()`, golden-path for order #1007 — native, DeepEval, or Ragas |
 | 7 | Monitored production | RED, cost budgets, SLOs, online eval |
 | 8 | Closed the loop | prod traces → dataset → re-eval |
 
 Start at your row in the table at the top. The fastest path to "is my agent healthy?" is one
 `register()` call and a single trace — everything else builds from there.
+
+The full, runnable code — the main multi-framework tutorial plus the five standalone variants
+(LangGraph, Strands, LangGraph+DeepEval, LangGraph+Ragas, and Bedrock AgentCore Runtime) — is at
+**[github.com/anirudha/os-agent-observability-evals](https://github.com/anirudha/os-agent-observability-evals)**.
+Clone it, `docker compose up`, and run the variant that matches your stack.
 ```
