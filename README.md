@@ -64,6 +64,9 @@ repo layout, per-part mapping, and details.
 
 ## The journey
 
+Full index with read / code / run links for every part:
+**[`acme-support-agent/docs/README.md`](acme-support-agent/docs/README.md)**.
+
 | Part | Step | In the repo |
 |---|---|---|
 | 1 | Define goals → eval criteria | [`python/evals/criteria.py`](acme-support-agent/python/evals/criteria.py) |

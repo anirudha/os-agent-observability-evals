@@ -78,6 +78,8 @@ acme-support-agent/
 
 ## The journey, mapped to this repo
 
+Full index with read / code / run links for every part: [`docs/README.md`](docs/README.md).
+
 | Blog part | Where in the repo |
 |---|---|
 | 1 — Define goals | [`python/evals/criteria.py`](python/evals/criteria.py) |
