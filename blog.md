@@ -333,11 +333,7 @@ pointed at `localhost:4318`.
 
 Now the payoff: seeing what your agent actually did.
 
-**Agent Health (CLI + UI)** is the local debugging surface — it pulls traces, renders the
-agent's reasoning as a tree, and scores runs without leaving your terminal. Use it while you're
-iterating on the prompt.
-
-**OpenSearch Dashboards** is where you explore at depth — trace tree / DAG / timeline views,
+**OpenSearch Dashboards** is where you explore — trace tree / DAG / timeline views,
 the service map, and ad-hoc PPL. A few queries you'll reach for constantly:
 
 Reconstruct a single trace (the whole reasoning tree for one question):
