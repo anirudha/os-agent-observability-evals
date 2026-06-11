@@ -13,12 +13,27 @@ import os
 from .observability import observe, enrich, Op
 from .tools import lookup_order, check_inventory, search_policy, SYSTEM_PROMPT
 
-MODEL = os.environ.get("ACME_MODEL", "gpt-4o")
+# Provider is selectable so the same agent runs on OpenAI or Bedrock.
+#   ACME_LLM_PROVIDER=openai  (default)  -> needs langchain-openai + OPENAI_API_KEY
+#   ACME_LLM_PROVIDER=bedrock            -> needs langchain-aws + AWS credentials
+PROVIDER = os.environ.get("ACME_LLM_PROVIDER", "openai").lower()
+_DEFAULT_MODEL = {
+    "openai": "gpt-4o",
+    "bedrock": "global.anthropic.claude-haiku-4-5-20251001-v1:0",
+}.get(PROVIDER, "gpt-4o")
+MODEL = os.environ.get("ACME_MODEL", _DEFAULT_MODEL)
+
+
+def _make_llm():
+    if PROVIDER == "bedrock":
+        from langchain_aws import ChatBedrockConverse
+        return ChatBedrockConverse(model=MODEL, temperature=0)
+    from langchain_openai import ChatOpenAI
+    return ChatOpenAI(model=MODEL, temperature=0)
 
 
 def build_agent():
     from langchain_core.tools import tool
-    from langchain_openai import ChatOpenAI
     from langgraph.prebuilt import create_react_agent
 
     @tool
@@ -36,7 +51,7 @@ def build_agent():
         """Search Acme's returns and shipping policy for an answer."""
         return search_policy(query)
 
-    llm = ChatOpenAI(model=MODEL, temperature=0)
+    llm = _make_llm()
     return create_react_agent(
         llm,
         [lookup_order_tool, check_inventory_tool, search_policy_tool],
@@ -44,14 +59,16 @@ def build_agent():
     )
 
 
-@observe(op=Op.INVOKE_AGENT, name="handle_support_question")
+# name= on an INVOKE_AGENT span sets gen_ai.agent.name, so we name it for the agent.
+@observe(op=Op.INVOKE_AGENT, name="acme-support-agent")
 def handle_support_question(
     question: str,
     conversation_id: str = "anonymous",
     history: list[dict] | None = None,
 ) -> str:
     """invoke_agent span. chat + execute_tool child spans come from the graph + tools."""
-    enrich(agent_name="acme-support-agent", conversation_id=conversation_id)
+    enrich(model=MODEL, provider=PROVIDER,
+           session_id=conversation_id)  # session_id -> gen_ai.conversation.id
     agent = build_agent()
     result = agent.invoke({"messages": [*(history or []), {"role": "user", "content": question}]})
     return result["messages"][-1].content

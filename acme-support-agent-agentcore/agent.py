@@ -45,12 +45,12 @@ _TOOLS = {"lookup_order": lookup_order, "check_inventory": check_inventory,
           "search_policy": search_policy}
 
 
-@observe(op=Op.INVOKE_AGENT, name="handle_support_question")
+@observe(op=Op.INVOKE_AGENT, name="acme-support-agent")
 def _run_agent(question: str, conversation_id: str) -> str:
     import boto3
 
-    enrich(agent_name="acme-support-agent", provider="aws.bedrock",
-           model=MODEL, conversation_id=conversation_id)
+    enrich(provider="aws.bedrock", model=MODEL,
+           session_id=conversation_id)  # session_id -> gen_ai.conversation.id
     client = boto3.client("bedrock-runtime")
     messages = [{"role": "user", "content": [{"text": question}]}]
 

@@ -20,6 +20,18 @@ pip install -e .                   # this variant
 export OPENAI_API_KEY=sk-...
 ```
 
+### Run on Bedrock instead of OpenAI
+
+The agent is provider-flexible. To run against Amazon Bedrock:
+
+```bash
+pip install -e ".[bedrock]"        # adds langchain-aws
+export ACME_LLM_PROVIDER=bedrock
+export AWS_REGION=us-east-1         # plus AWS credentials (env/profile/role)
+# default model: global.anthropic.claude-haiku-4-5-20251001-v1:0
+# override with ACME_MODEL=...
+```
+
 ## Run
 
 ```bash

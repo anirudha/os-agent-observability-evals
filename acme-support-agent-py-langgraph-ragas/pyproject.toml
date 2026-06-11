@@ -8,9 +8,16 @@ dependencies = [
     "langchain-openai>=0.2",
     "langgraph>=0.2",
     "openai>=1.40",
-    "ragas>=0.2",
+    # ragas 0.4.x has a broken internal import against current langchain-community;
+    # pin a known-compatible pair (verified working end to end).
+    "ragas==0.2.14",
+    "langchain-community==0.3.14",
     "opensearch-genai-observability-sdk-py[langchain]",
 ]
+
+[project.optional-dependencies]
+# Run the agent on Bedrock instead of OpenAI: ACME_LLM_PROVIDER=bedrock
+bedrock = ["langchain-aws>=0.2"]
 
 [build-system]
 requires = ["setuptools>=68"]

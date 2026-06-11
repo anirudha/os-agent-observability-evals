@@ -39,40 +39,33 @@ _POLICY_DOC = {
 # Tools — each emits an execute_tool span.
 # ---------------------------------------------------------------------------
 
+# @observe(op=Op.EXECUTE_TOOL, name=...) automatically captures the function's
+# arguments into gen_ai.tool.call.arguments, the return value into
+# gen_ai.tool.call.result, and the name into gen_ai.tool.name — all serialized
+# correctly. So the tools just do their work; no manual enrich() is needed.
+
 @observe(op=Op.EXECUTE_TOOL, name="lookup_order")
 def lookup_order(order_id: str) -> dict:
     """Look up an order by its ID."""
-    enrich(tool_name="lookup_order", tool_arguments={"order_id": order_id})
     order = _ORDERS.get(str(order_id).strip().lstrip("#"))
-    result = order or {"error": "order_not_found", "order_id": order_id}
-    enrich(tool_result=result)
-    return result
+    return order or {"error": "order_not_found", "order_id": order_id}
 
 
 @observe(op=Op.EXECUTE_TOOL, name="check_inventory")
 def check_inventory(sku: str) -> dict:
     """Check stock level for a SKU."""
-    enrich(tool_name="check_inventory", tool_arguments={"sku": sku})
     count = _INVENTORY.get(str(sku).strip().upper())
-    result = {"sku": sku, "in_stock": count} if count is not None else {"error": "sku_not_found", "sku": sku}
-    enrich(tool_result=result)
-    return result
+    return {"sku": sku, "in_stock": count} if count is not None else {"error": "sku_not_found", "sku": sku}
 
 
 @observe(op=Op.EXECUTE_TOOL, name="search_policy")
 def search_policy(query: str) -> dict:
     """Search the returns/shipping policy doc (a tiny RAG stand-in)."""
-    enrich(tool_name="search_policy", tool_arguments={"query": query})
     q = query.lower()
     for key, text in _POLICY_DOC.items():
         if key in q:
-            result = {"topic": key, "answer": text}
-            enrich(tool_result=result)
-            return result
-    # default to returns policy
-    result = {"topic": "returns", "answer": _POLICY_DOC["returns"]}
-    enrich(tool_result=result)
-    return result
+            return {"topic": key, "answer": text}
+    return {"topic": "returns", "answer": _POLICY_DOC["returns"]}
 
 
 # ---------------------------------------------------------------------------

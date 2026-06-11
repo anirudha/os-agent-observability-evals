@@ -11,6 +11,10 @@ dependencies = [
     "opensearch-genai-observability-sdk-py[langchain]",
 ]
 
+[project.optional-dependencies]
+# Run the agent on Bedrock instead of OpenAI: ACME_LLM_PROVIDER=bedrock
+bedrock = ["langchain-aws>=0.2"]
+
 [build-system]
 requires = ["setuptools>=68"]
 build-backend = "setuptools.build_meta"

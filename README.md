@@ -16,6 +16,14 @@ journey to a **healthy production agent**:
 | [`blog.md`](blog.md) | The tutorial walkthrough — read this first |
 | [`acme-support-agent/`](acme-support-agent/) | The runnable companion repo: a full example agent + the local stack |
 
+> **Verified against the real SDK + Bedrock.** The instrumentation and agent loops were tested
+> end to end with the [OpenSearch GenAI SDK](https://github.com/opensearch-project/genai-observability-sdk-py)
+> exporting real OTLP spans, running on Amazon Bedrock (Claude Haiku 4.5). Confirmed: the
+> `invoke_agent → chat → execute_tool` trace tree, correct `gen_ai.*` attributes
+> (`gen_ai.tool.call.arguments`/`result`, `gen_ai.conversation.id`, `gen_ai.agent.name`), the
+> native-SDK eval suite, and the LangChain auto-instrumentor's `chat` spans. See
+> [What's tested](#whats-tested).
+
 ## The example: Acme Support Agent
 
 One example agent threaded through every step so you can follow it end to end. It's a
@@ -99,6 +107,31 @@ Full index with read / code / run links for every part:
 | 6 | Evaluate against a dataset | [`python/evals/`](acme-support-agent/python/evals/) |
 | 7 | Monitor production | [`infra/prometheus/`](acme-support-agent/infra/prometheus/), [`docs/production.md`](acme-support-agent/docs/production.md) |
 | 8 | Close the loop | [`python/evals/dataset.py`](acme-support-agent/python/evals/dataset.py) |
+
+## What's tested
+
+The code was run end to end against the real
+[OpenSearch GenAI SDK](https://github.com/opensearch-project/genai-observability-sdk-py)
+(installed from source) on **Amazon Bedrock** (Claude Haiku 4.5), with spans exported over
+OTLP to a live collector and inspected.
+
+| Area | Status | Notes |
+|---|---|---|
+| Shared core (`acme-shared`) — tools, observability, dataset, criteria | ✅ tested | imports + run under real `register()` |
+| `gen_ai.*` span attributes | ✅ tested | `tool.call.arguments`/`result`, `conversation.id`, `agent.name`, `provider.name`, `request.model` all correct |
+| Trace tree `invoke_agent → chat → execute_tool` | ✅ tested | confirmed in collector output |
+| LangChain auto-instrumentor `chat` spans | ✅ tested | `ChatBedrockConverse.chat` spans appear automatically |
+| **AgentCore** agent loop + eval suite | ✅ tested (Bedrock) | 4/5 eval cases pass; trajectory correct on all 5 |
+| **LangGraph** agent + eval suite | ✅ tested (Bedrock) | provider-flexible via `ACME_LLM_PROVIDER` |
+| **Original tutorial** Bedrock adapter | ✅ tested (Bedrock) | correct tool calls + answers |
+| **DeepEval** runner API | ✅ verified | metric/test-case imports valid; not run against a live judge |
+| **Ragas** runner API | ✅ verified | pinned `ragas==0.2.14` + `langchain-community==0.3.14` (0.4.x has a broken import) |
+| **Strands** agent | ⚠️ not run | requires the Strands SDK; code follows its documented `Agent`/`@tool` API |
+| **TypeScript** variant | ⚠️ not run | raw-OTel path; native JS SDK still in development |
+
+> The recurring "4/5" is the substring answer-judge being strict on the "processing" order, not
+> an agent or instrumentation bug — exactly the kind of thing the eval loop surfaces. The golden
+> path trajectory is correct on all five cases.
 
 ## A note on credentials
 

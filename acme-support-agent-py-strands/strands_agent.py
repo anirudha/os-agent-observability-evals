@@ -46,9 +46,9 @@ def _build_agent():
     )
 
 
-@observe(op=Op.INVOKE_AGENT, name="handle_support_question")
+@observe(op=Op.INVOKE_AGENT, name="acme-support-agent")
 def handle_support_question(question: str, conversation_id: str = "anonymous", **_) -> str:
-    enrich(agent_name="acme-support-agent", provider="strands", conversation_id=conversation_id)
+    enrich(provider="strands", session_id=conversation_id)  # session_id -> gen_ai.conversation.id
     agent = _build_agent()
     result = agent(question)
     # Strands returns a result object; its str() is the final text.
