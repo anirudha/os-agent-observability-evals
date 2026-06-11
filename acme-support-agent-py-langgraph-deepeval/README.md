@@ -1,0 +1,42 @@
+# Acme Support Agent — LangGraph + DeepEval
+
+Same LangGraph agent as [`../acme-support-agent-py-langgraph`](../acme-support-agent-py-langgraph),
+but the evaluation layer is **[DeepEval](https://docs.confident-ai.com/)** instead of
+the native scorer.
+
+The point: you can keep your preferred eval library and *still* have its scores land
+beside your traces. The runner emits DeepEval's results via `score()`, so
+`deepeval.answer_relevancy` and `deepeval.tool_correctness` show up on the same traces
+in OpenSearch — no separate silo.
+
+## Metrics
+
+| DeepEval metric | What it checks |
+|---|---|
+| `AnswerRelevancyMetric` | LLM-as-judge: is the answer relevant and correct? |
+| `ToolCorrectnessMetric` | did the agent call the expected tool(s)? |
+
+## Setup
+
+Bring up the stack from [`../acme-support-agent`](../acme-support-agent)
+(`docker compose up -d`), then:
+
+```bash
+pip install -e ../acme-shared
+pip install -e .
+export OPENAI_API_KEY=sk-...     # used by the agent and DeepEval's judge
+```
+
+## Run
+
+```bash
+python run.py "where is my order #1007?"
+python -m evals.run_evals
+```
+
+## Compare
+
+Run the native ([`../acme-support-agent-py-langgraph`](../acme-support-agent-py-langgraph))
+and Ragas ([`../acme-support-agent-py-langgraph-ragas`](../acme-support-agent-py-langgraph-ragas))
+variants on the same dataset to compare what each eval library tells you about the
+identical agent.

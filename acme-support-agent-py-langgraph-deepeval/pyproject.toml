@@ -1,0 +1,23 @@
+[project]
+name = "acme-support-agent-py-langgraph-deepeval"
+version = "0.1.0"
+description = "Acme Support Agent on LangGraph with DeepEval-based evaluation, scores emitted into OpenSearch."
+requires-python = ">=3.10"
+dependencies = [
+    "acme-shared",
+    "langchain-openai>=0.2",
+    "langgraph>=0.2",
+    "openai>=1.40",
+    "deepeval>=1.0",
+    "opensearch-genai-observability-sdk-py[langchain]",
+]
+
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools]
+packages = ["evals"]
+
+[tool.uv.sources]
+acme-shared = { path = "../acme-shared", editable = true }

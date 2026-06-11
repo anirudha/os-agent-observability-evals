@@ -1,0 +1,25 @@
+[project]
+name = "acme-support-agent-agentcore"
+version = "0.1.0"
+description = "Acme Support Agent on Amazon Bedrock AgentCore Runtime, instrumented with the OpenSearch GenAI SDK."
+requires-python = ">=3.10"
+dependencies = [
+    "acme-shared",
+    "bedrock-agentcore",
+    "boto3>=1.34",
+    "opensearch-genai-observability-sdk-py[bedrock]",
+]
+
+[project.optional-dependencies]
+# Tooling for deploying to AgentCore Runtime (configure + launch).
+deploy = ["bedrock-agentcore-starter-toolkit"]
+
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools]
+packages = ["evals"]
+
+[tool.uv.sources]
+acme-shared = { path = "../acme-shared", editable = true }

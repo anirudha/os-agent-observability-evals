@@ -1,0 +1,37 @@
+# Acme Support Agent — LangGraph variant
+
+The Acme Support Agent built on **LangGraph** (prebuilt ReAct agent), instrumented
+with the OpenSearch GenAI SDK, evaluated with the SDK's **native** scoring.
+
+This is the baseline LangGraph flavor. Two siblings swap the judging layer for an
+external eval library while reusing the same agent, dataset, and golden paths:
+
+- [`../acme-support-agent-py-langgraph-deepeval`](../acme-support-agent-py-langgraph-deepeval) — DeepEval
+- [`../acme-support-agent-py-langgraph-ragas`](../acme-support-agent-py-langgraph-ragas) — Ragas
+
+## Setup
+
+Bring up the stack from the original tutorial folder
+([`../acme-support-agent`](../acme-support-agent)) — `docker compose up -d` — then:
+
+```bash
+pip install -e ../acme-shared      # shared tools, observability, dataset, criteria
+pip install -e .                   # this variant
+export OPENAI_API_KEY=sk-...
+```
+
+## Run
+
+```bash
+python run.py "where is my order #1007?"
+python -m evals.run_evals
+```
+
+## What's shared vs. specific
+
+| Shared (from `acme-shared`) | Specific to this variant |
+|---|---|
+| tools, observability wiring, dataset, golden paths, criteria | the LangGraph agent builder + native-SDK eval runner |
+
+The agent itself lives in [`acme_shared/langgraph_agent.py`](../acme-shared/acme_shared/langgraph_agent.py)
+since three variants share it.

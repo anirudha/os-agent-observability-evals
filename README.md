@@ -29,10 +29,32 @@ are written **once**; only the model/tool-calling layer swaps per framework.
 
 ## Frameworks covered
 
+The main tutorial ([`acme-support-agent/`](acme-support-agent/)) shows every framework
+in one repo:
+
 | Runtime | Frameworks | Path |
 |---|---|---|
 | **Python** | OpenAI · Anthropic · Bedrock · LangChain · LlamaIndex | native SDK (`opensearch-genai-observability-sdk-py`) |
 | **TypeScript** | raw OpenTelemetry (native JS SDK [in development](https://github.com/opensearch-project/genai-observability-sdk-js)) | manual `gen_ai.*` spans |
+
+## Standalone variants
+
+Each variant is a focused, runnable flow for one framework or eval library. They all
+share one core ([`acme-shared/`](acme-shared/) — tools, observability, dataset, golden
+paths, criteria), so the **only** thing that differs is the agent framework or the eval
+layer. That makes them apples-to-apples on the same dataset.
+
+| Variant | Framework | Eval layer |
+|---|---|---|
+| [`acme-support-agent-py-langgraph`](acme-support-agent-py-langgraph/) | LangGraph | native SDK `score()` |
+| [`acme-support-agent-py-strands`](acme-support-agent-py-strands/) | [Strands Agents](https://strandsagents.com) | native SDK `score()` |
+| [`acme-support-agent-py-langgraph-deepeval`](acme-support-agent-py-langgraph-deepeval/) | LangGraph | [DeepEval](https://docs.confident-ai.com/) → `score()` |
+| [`acme-support-agent-py-langgraph-ragas`](acme-support-agent-py-langgraph-ragas/) | LangGraph | [Ragas](https://docs.ragas.io/) → `score()` |
+| [`acme-support-agent-agentcore`](acme-support-agent-agentcore/) | [Bedrock AgentCore Runtime](https://aws.amazon.com/bedrock/agentcore/) | native SDK `score()` |
+
+Every variant emits its eval scores via `score()`, so results land beside the traces in
+OpenSearch regardless of which eval library produced them. Each folder has its own
+README with setup and run steps.
 
 ## Quick start
 

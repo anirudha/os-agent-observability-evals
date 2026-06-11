@@ -1,0 +1,123 @@
+"""The three Acme tools, plus their JSON-schema definitions.
+
+The tools return deterministic, fixed data so that evaluation can be objective:
+given a question, there is exactly one correct tool call and one correct answer.
+
+Each tool is wrapped with @observe(op=Op.EXECUTE_TOOL) so it shows up as an
+`execute_tool` span with the gen_ai.tool.* attributes attached. The framework
+adapters call these same functions, so tool behavior is identical everywhere.
+"""
+
+from __future__ import annotations
+
+from .observability import observe, enrich, Op
+
+# ---------------------------------------------------------------------------
+# Fake backing data (a real agent would hit a DB / service here).
+# ---------------------------------------------------------------------------
+
+_ORDERS = {
+    "1007": {"status": "shipped", "items": ["Acme Rocket Skates"], "ship_date": "2026-06-09"},
+    "1042": {"status": "processing", "items": ["Acme Giant Rubber Band"], "ship_date": None},
+    "1099": {"status": "delivered", "items": ["Acme Anvil"], "ship_date": "2026-06-01"},
+}
+
+_INVENTORY = {
+    "SK-ROCKET": 14,
+    "RB-GIANT": 0,
+    "ANVIL-XL": 230,
+}
+
+_POLICY_DOC = {
+    "returns": "Items may be returned within 30 days of delivery for a full refund.",
+    "shipping": "Standard shipping is 3-5 business days. Express is next-day.",
+    "damaged": "Damaged items are replaced free of charge; contact support within 7 days.",
+}
+
+
+# ---------------------------------------------------------------------------
+# Tools — each emits an execute_tool span.
+# ---------------------------------------------------------------------------
+
+@observe(op=Op.EXECUTE_TOOL, name="lookup_order")
+def lookup_order(order_id: str) -> dict:
+    """Look up an order by its ID."""
+    enrich(tool_name="lookup_order", tool_arguments={"order_id": order_id})
+    order = _ORDERS.get(str(order_id).strip().lstrip("#"))
+    result = order or {"error": "order_not_found", "order_id": order_id}
+    enrich(tool_result=result)
+    return result
+
+
+@observe(op=Op.EXECUTE_TOOL, name="check_inventory")
+def check_inventory(sku: str) -> dict:
+    """Check stock level for a SKU."""
+    enrich(tool_name="check_inventory", tool_arguments={"sku": sku})
+    count = _INVENTORY.get(str(sku).strip().upper())
+    result = {"sku": sku, "in_stock": count} if count is not None else {"error": "sku_not_found", "sku": sku}
+    enrich(tool_result=result)
+    return result
+
+
+@observe(op=Op.EXECUTE_TOOL, name="search_policy")
+def search_policy(query: str) -> dict:
+    """Search the returns/shipping policy doc (a tiny RAG stand-in)."""
+    enrich(tool_name="search_policy", tool_arguments={"query": query})
+    q = query.lower()
+    for key, text in _POLICY_DOC.items():
+        if key in q:
+            result = {"topic": key, "answer": text}
+            enrich(tool_result=result)
+            return result
+    # default to returns policy
+    result = {"topic": "returns", "answer": _POLICY_DOC["returns"]}
+    enrich(tool_result=result)
+    return result
+
+
+# ---------------------------------------------------------------------------
+# Tool registry + schemas shared by every framework adapter.
+# ---------------------------------------------------------------------------
+
+TOOL_FUNCTIONS = {
+    "lookup_order": lookup_order,
+    "check_inventory": check_inventory,
+    "search_policy": search_policy,
+}
+
+TOOL_SCHEMAS = [
+    {
+        "name": "lookup_order",
+        "description": "Look up the status, items, and ship date of an order by its order ID.",
+        "parameters": {
+            "type": "object",
+            "properties": {"order_id": {"type": "string", "description": "The order ID, e.g. 1007"}},
+            "required": ["order_id"],
+        },
+    },
+    {
+        "name": "check_inventory",
+        "description": "Check how many units of a SKU are in stock.",
+        "parameters": {
+            "type": "object",
+            "properties": {"sku": {"type": "string", "description": "The product SKU, e.g. SK-ROCKET"}},
+            "required": ["sku"],
+        },
+    },
+    {
+        "name": "search_policy",
+        "description": "Search Acme's returns and shipping policy for an answer.",
+        "parameters": {
+            "type": "object",
+            "properties": {"query": {"type": "string", "description": "What the customer is asking about"}},
+            "required": ["query"],
+        },
+    },
+]
+
+SYSTEM_PROMPT = (
+    "You are the Acme customer support agent. Use the provided tools to answer "
+    "customer questions about orders, inventory, and policies. Always call a tool "
+    "to get real data before answering — never guess an order status or stock count. "
+    "Keep answers short and friendly."
+)

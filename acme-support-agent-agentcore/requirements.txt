@@ -1,0 +1,5 @@
+# AgentCore Runtime builds the container from requirements.txt.
+# acme-shared is vendored at build time (see README) or published to your index.
+bedrock-agentcore
+boto3>=1.34
+opensearch-genai-observability-sdk-py[bedrock]

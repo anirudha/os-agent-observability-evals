@@ -1,0 +1,15 @@
+[project]
+name = "acme-shared"
+version = "0.1.0"
+description = "Shared core for the Acme Support Agent observability variants: tools, observability wiring, dataset, and eval criteria."
+requires-python = ">=3.10"
+dependencies = [
+    "opensearch-genai-observability-sdk-py",
+]
+
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools]
+packages = ["acme_shared"]
