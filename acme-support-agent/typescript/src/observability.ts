@@ -1,27 +1,23 @@
 /**
- * Observability setup — Blog Part 3b (TypeScript interim path).
+ * Observability setup — Blog Part 3b (TypeScript).
  *
- * The native OpenSearch JS GenAI SDK is under active development:
- *   https://github.com/opensearch-project/genai-observability-sdk-js
- * Until it ships, we use standard OpenTelemetry with manual gen_ai.* attributes
- * so spans land in the same otel-v1-apm-* indices as the Python path.
+ * Uses the OpenSearch GenAI Observability SDK for TypeScript:
+ *   https://github.com/opensearch-project/genai-observability-sdk-ts
+ *   npm: @opensearch-project/genai-observability-sdk-ts
  *
+ * register() configures the OTel pipeline — same model as the Python SDK.
  * Import this module FIRST (via --import) so the SDK starts before the agent runs.
  */
 
-import { NodeSDK } from "@opentelemetry/sdk-node";
-import { OTLPTraceExporter } from "@opentelemetry/exporter-trace-otlp-http";
+import { register } from "@opensearch-project/genai-observability-sdk-ts";
 
-const endpoint =
-  process.env.OTEL_EXPORTER_OTLP_TRACES_ENDPOINT ??
-  "http://localhost:4318/v1/traces";
-
-const sdk = new NodeSDK({
+await register({
+  endpoint:
+    process.env.OTEL_EXPORTER_OTLP_TRACES_ENDPOINT ??
+    "http://localhost:4318/v1/traces",
   serviceName: process.env.OTEL_SERVICE_NAME ?? "acme-support-agent",
-  traceExporter: new OTLPTraceExporter({ url: endpoint }),
+  // autoInstrument discovers installed instrumentors (e.g. @opentelemetry/instrumentation-openai)
+  batch: false,
 });
 
-sdk.start();
-console.log(`[observability] OTel started -> ${endpoint}`);
-
-process.on("SIGTERM", () => sdk.shutdown().finally(() => process.exit(0)));
+console.log("[observability] register() complete");

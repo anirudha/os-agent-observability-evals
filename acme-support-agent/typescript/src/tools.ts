@@ -1,7 +1,13 @@
 /**
  * The three Acme tools, mirroring the Python version with the same fixed data
  * so evals are objective and the golden paths are identical across languages.
+ *
+ * Each tool is wrapped with observe({ op: Op.EXECUTE_TOOL }), which auto-captures
+ * the arguments into gen_ai.tool.call.arguments and the return value into
+ * gen_ai.tool.call.result — the same behavior as the Python @observe decorator.
  */
+
+import { observe, Op } from "@opensearch-project/genai-observability-sdk-ts";
 
 const ORDERS: Record<string, unknown> = {
   "1007": { status: "shipped", items: ["Acme Rocket Skates"], ship_date: "2026-06-09" },
@@ -21,24 +27,33 @@ const POLICY: Record<string, string> = {
   damaged: "Damaged items are replaced free of charge; contact support within 7 days.",
 };
 
-export function lookupOrder(orderId: string) {
-  const id = String(orderId).trim().replace(/^#/, "");
-  return ORDERS[id] ?? { error: "order_not_found", order_id: orderId };
-}
+export const lookupOrder = observe(
+  { name: "lookup_order", op: Op.EXECUTE_TOOL },
+  function lookupOrder(orderId: string) {
+    const id = String(orderId).trim().replace(/^#/, "");
+    return ORDERS[id] ?? { error: "order_not_found", order_id: orderId };
+  },
+);
 
-export function checkInventory(sku: string) {
-  const key = String(sku).trim().toUpperCase();
-  const count = INVENTORY[key];
-  return count !== undefined ? { sku, in_stock: count } : { error: "sku_not_found", sku };
-}
+export const checkInventory = observe(
+  { name: "check_inventory", op: Op.EXECUTE_TOOL },
+  function checkInventory(sku: string) {
+    const key = String(sku).trim().toUpperCase();
+    const count = INVENTORY[key];
+    return count !== undefined ? { sku, in_stock: count } : { error: "sku_not_found", sku };
+  },
+);
 
-export function searchPolicy(query: string) {
-  const q = query.toLowerCase();
-  for (const [topic, answer] of Object.entries(POLICY)) {
-    if (q.includes(topic)) return { topic, answer };
-  }
-  return { topic: "returns", answer: POLICY.returns };
-}
+export const searchPolicy = observe(
+  { name: "search_policy", op: Op.EXECUTE_TOOL },
+  function searchPolicy(query: string) {
+    const q = query.toLowerCase();
+    for (const [topic, answer] of Object.entries(POLICY)) {
+      if (q.includes(topic)) return { topic, answer };
+    }
+    return { topic: "returns", answer: POLICY.returns };
+  },
+);
 
 export const TOOL_FUNCTIONS: Record<string, (...args: any[]) => unknown> = {
   lookup_order: (a: { order_id: string }) => lookupOrder(a.order_id),

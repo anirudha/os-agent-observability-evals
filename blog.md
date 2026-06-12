@@ -32,7 +32,7 @@ And on the stack axis:
 | Your runtime | Path |
 |---|---|
 | **Python** | Native SDK (`opensearch-genai-observability-sdk-py`) — the spine of this tutorial |
-| **TypeScript / Node** | OpenTelemetry interim path — the native JS SDK is [in active development](https://github.com/opensearch-project/genai-observability-sdk-js); we'll show what works today |
+| **TypeScript / Node** | Native SDK ([`@opensearch-project/genai-observability-sdk-ts`](https://github.com/opensearch-project/genai-observability-sdk-ts)) — full parity with Python |
 
 ---
 
@@ -219,67 +219,55 @@ to see how little changes.
 > `invoke_agent` trace — instrumentation survives the move from laptop to managed endpoint
 > unchanged.
 
-### 3b. TypeScript / Node — the OpenTelemetry interim path
+### 3b. TypeScript / Node — the native SDK
 
-The native JavaScript/TypeScript SDK is **under active development** — there's no published
-package yet, so we won't pretend there is one. Today you get the same trace store using
-standard OpenTelemetry with manual `gen_ai.*` attributes.
+The TypeScript SDK is published and has full parity with Python:
+[`@opensearch-project/genai-observability-sdk-ts`](https://github.com/opensearch-project/genai-observability-sdk-ts)
+— `register`, `observe`, `enrich`, `score`, `Op`, the lot.
 
 ```bash
-npm install @opentelemetry/sdk-node \
-            @opentelemetry/exporter-trace-otlp-http \
-            @opentelemetry/api
+npm install @opensearch-project/genai-observability-sdk-ts @opentelemetry/api
 ```
 
-Set up the exporter once:
+`register()` once at startup (import it before your agent so the pipeline is live):
 
 ```typescript
-import { NodeSDK } from "@opentelemetry/sdk-node";
-import { OTLPTraceExporter } from "@opentelemetry/exporter-trace-otlp-http";
+import { register } from "@opensearch-project/genai-observability-sdk-ts";
 
-const sdk = new NodeSDK({
+await register({
+  endpoint: "http://localhost:4318/v1/traces",
   serviceName: "acme-support-agent",
-  traceExporter: new OTLPTraceExporter({
-    url: "http://localhost:4318/v1/traces",
-  }),
 });
-sdk.start();
 ```
 
-Then create spans with the GenAI semantic conventions by hand so they land in the same indices
-and dashboards as the Python path:
+Then `observe()` wraps the agent and the tools — and, like the Python decorator, it
+auto-captures a tool's arguments and return value into
+`gen_ai.tool.call.arguments` / `result`:
 
 ```typescript
-import { trace, SpanKind } from "@opentelemetry/api";
+import { observe, enrich, Op } from "@opensearch-project/genai-observability-sdk-ts";
 
-const tracer = trace.getTracer("acme-support-agent");
+// a tool — observe() captures args + result automatically
+export const lookupOrder = observe(
+  { name: "lookup_order", op: Op.EXECUTE_TOOL },
+  function lookupOrder(orderId: string) {
+    return ORDERS[orderId] ?? { error: "order_not_found", orderId };
+  },
+);
 
-async function handleSupportQuestion(question: string, conversationId: string) {
-  return tracer.startActiveSpan(
-    "invoke_agent",
-    { kind: SpanKind.SERVER, attributes: {
-      "gen_ai.operation.name": "invoke_agent",
-      "gen_ai.agent.name": "acme-support-agent",
-      "gen_ai.request.model": "gpt-4o",
-      "gen_ai.conversation.id": conversationId,
-    }},
-    async (span) => {
-      try {
-        // your agent loop; wrap each LLM call as a "chat" span and each
-        // tool call as an "execute_tool" span with gen_ai.tool.name
-        return await runAgent(question);
-      } finally {
-        span.end();
-      }
-    },
-  );
-}
+// the agent entry point — one invoke_agent span over the whole turn
+export const handleSupportQuestion = observe(
+  { name: "acme-support-agent", op: Op.INVOKE_AGENT },
+  async function handleSupportQuestion(question: string, conversationId: string) {
+    enrich({ model: "gpt-4o", provider: "openai", sessionId: conversationId });
+    return await runAgent(question);  // chat + execute_tool spans emitted for you
+  },
+);
 ```
 
-Follow the [OTel GenAI semantic conventions](https://opentelemetry.io/docs/specs/semconv/gen-ai/)
-for attribute names — they're the contract that makes the rest of this tutorial work
-regardless of language. When the native JS SDK ships, you'll get `register()`/`observe()`
-parity and can drop the boilerplate.
+That's the same `register()` + `observe()` + `enrich()` flow as Python — the only difference
+is the language. Wrap each model call with `observe({ op: Op.CHAT })` and `enrich()` the token
+usage onto it, exactly as in 3a.
 
 ---
 

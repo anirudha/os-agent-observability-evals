@@ -43,7 +43,7 @@ in one repo:
 | Runtime | Frameworks | Path |
 |---|---|---|
 | **Python** | OpenAI · Anthropic · Bedrock · LangChain · LlamaIndex | native SDK (`opensearch-genai-observability-sdk-py`) |
-| **TypeScript** | raw OpenTelemetry (native JS SDK [in development](https://github.com/opensearch-project/genai-observability-sdk-js)) | manual `gen_ai.*` spans |
+| **TypeScript** | native SDK [`@opensearch-project/genai-observability-sdk-ts`](https://github.com/opensearch-project/genai-observability-sdk-ts) | `register` + `observe` + `enrich` (parity with Python) |
 
 ## Standalone variants
 
@@ -127,7 +127,7 @@ OTLP to a live collector and inspected.
 | **Strands** agent | ✅ tested (Bedrock) | full nested trace tree — my spans + Strands' native OTel spans compose |
 | **DeepEval** eval suite | ✅ tested end to end (Bedrock) | agent + Bedrock judge (`DEEPEVAL_JUDGE=bedrock`); 4/5; real `gen_ai.evaluation.*` score spans exported |
 | **Ragas** eval suite | ✅ tested end to end (Bedrock) | agent + Bedrock judge (`RAGAS_JUDGE=bedrock`); 5/5; pinned versions (see below) |
-| **TypeScript** variant | ⚠️ not run | raw-OTel path; native JS SDK still in development |
+| **TypeScript** variant | ✅ tested end to end (Bedrock) | native TS SDK v0.1.1; trace tree + auto-captured `gen_ai.tool.call.arguments`/`result` confirmed |
 
 > **Version pins discovered while testing.** `ragas==0.2.14` needs `langchain-core 0.3.x`, which
 > conflicts with `langgraph>=1.0` — so the Ragas variant pins `langgraph>=0.2,<0.3`. The Ragas
