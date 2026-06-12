@@ -13,8 +13,11 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
-# Run the agent on Bedrock instead of OpenAI: ACME_LLM_PROVIDER=bedrock
-bedrock = ["langchain-aws>=0.2"]
+# Run the agent AND/OR judge on Bedrock instead of OpenAI:
+#   ACME_LLM_PROVIDER=bedrock   (agent)
+#   DEEPEVAL_JUDGE=bedrock      (judge — needs aiobotocore, which DeepEval's
+#                                AmazonBedrockModel requires)
+bedrock = ["langchain-aws>=0.2", "aiobotocore>=2.13"]
 
 [build-system]
 requires = ["setuptools>=68"]

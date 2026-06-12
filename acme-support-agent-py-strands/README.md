@@ -9,6 +9,11 @@ OpenSearch SDK.
 By default this variant targets a Bedrock-hosted Claude model (Strands' default
 provider), so it uses standard AWS credentials.
 
+> **Verified end to end on Bedrock.** The full nested trace tree is confirmed — the
+> OpenSearch SDK's `invoke_agent`/`execute_tool` spans wrap Strands' own native spans
+> (`invoke_agent Strands Agents` → `execute_event_loop_cycle` → `chat` → `execute_tool`),
+> all with correct `gen_ai.*` attributes.
+
 ## Setup
 
 Bring up the stack from [`../acme-support-agent`](../acme-support-agent)

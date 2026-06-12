@@ -25,12 +25,26 @@ from acme_shared.langgraph_agent import handle_support_question
 
 def _ragas_correctness(case, answer) -> float:
     """LLM-judged correctness via Ragas AspectCritic (binary 0/1)."""
+    import os
     from ragas import SingleTurnSample
     from ragas.metrics import AspectCritic
     from ragas.llms import LangchainLLMWrapper
-    from langchain_openai import ChatOpenAI
 
-    judge = LangchainLLMWrapper(ChatOpenAI(model="gpt-4o", temperature=0))
+    # The judge LLM. Default OpenAI; set RAGAS_JUDGE=bedrock to judge on Bedrock
+    # (no OpenAI key needed) — handy on AWS-only setups.
+    if os.environ.get("RAGAS_JUDGE", "").lower() == "bedrock":
+        from langchain_aws import ChatBedrockConverse
+        judge_llm = ChatBedrockConverse(
+            model=os.environ.get("RAGAS_JUDGE_MODEL",
+                                 "global.anthropic.claude-haiku-4-5-20251001-v1:0"),
+            temperature=0,
+            region_name=os.environ.get("AWS_REGION", "us-east-1"),
+        )
+    else:
+        from langchain_openai import ChatOpenAI
+        judge_llm = ChatOpenAI(model="gpt-4o", temperature=0)
+
+    judge = LangchainLLMWrapper(judge_llm)
     metric = AspectCritic(
         name="correctness",
         definition=(

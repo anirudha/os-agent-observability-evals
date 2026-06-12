@@ -22,6 +22,22 @@ pip install -e .
 export OPENAI_API_KEY=sk-...     # used by the agent and the Ragas judge
 ```
 
+> **Version note:** this variant pins `ragas==0.2.14`, `langchain-community==0.3.14`, and
+> `langgraph>=0.2,<0.3` — ragas 0.2.x needs `langchain-core 0.3.x`, which is incompatible with
+> `langgraph>=1.0`. These pins are verified working end to end (5/5 on Bedrock).
+
+### Run everything on Bedrock (no OpenAI key)
+
+The agent and the Ragas judge can both run on Amazon Bedrock — verified end to end (5/5):
+
+```bash
+pip install -e ".[bedrock]"             # adds langchain-aws
+export ACME_LLM_PROVIDER=bedrock        # agent on Bedrock
+export RAGAS_JUDGE=bedrock              # Ragas AspectCritic judge on Bedrock
+export AWS_REGION=us-east-1             # plus AWS credentials
+# judge model override: RAGAS_JUDGE_MODEL=...
+```
+
 ## Run
 
 ```bash

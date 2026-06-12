@@ -124,10 +124,15 @@ OTLP to a live collector and inspected.
 | **AgentCore** agent loop + eval suite | ✅ tested (Bedrock) | 4/5 eval cases pass; trajectory correct on all 5 |
 | **LangGraph** agent + eval suite | ✅ tested (Bedrock) | provider-flexible via `ACME_LLM_PROVIDER` |
 | **Original tutorial** Bedrock adapter | ✅ tested (Bedrock) | correct tool calls + answers |
-| **DeepEval** runner API | ✅ verified | metric/test-case imports valid; not run against a live judge |
-| **Ragas** runner API | ✅ verified | pinned `ragas==0.2.14` + `langchain-community==0.3.14` (0.4.x has a broken import) |
-| **Strands** agent | ⚠️ not run | requires the Strands SDK; code follows its documented `Agent`/`@tool` API |
+| **Strands** agent | ✅ tested (Bedrock) | full nested trace tree — my spans + Strands' native OTel spans compose |
+| **DeepEval** eval suite | ✅ tested end to end (Bedrock) | agent + Bedrock judge (`DEEPEVAL_JUDGE=bedrock`); 4/5; real `gen_ai.evaluation.*` score spans exported |
+| **Ragas** eval suite | ✅ tested end to end (Bedrock) | agent + Bedrock judge (`RAGAS_JUDGE=bedrock`); 5/5; pinned versions (see below) |
 | **TypeScript** variant | ⚠️ not run | raw-OTel path; native JS SDK still in development |
+
+> **Version pins discovered while testing.** `ragas==0.2.14` needs `langchain-core 0.3.x`, which
+> conflicts with `langgraph>=1.0` — so the Ragas variant pins `langgraph>=0.2,<0.3`. The Ragas
+> 0.4.x line has a broken internal import. DeepEval's Bedrock judge requires `aiobotocore`. All
+> of these are encoded in the variants' `pyproject.toml`.
 
 > The recurring "4/5" is the substring answer-judge being strict on the "processing" order, not
 > an agent or instrumentation bug — exactly the kind of thing the eval loop surfaces. The golden

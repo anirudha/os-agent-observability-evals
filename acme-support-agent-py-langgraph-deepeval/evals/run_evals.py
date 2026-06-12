@@ -24,6 +24,24 @@ from acme_shared.tracking import install, track_case
 from acme_shared.langgraph_agent import handle_support_question
 
 
+def _judge_model():
+    """Pick the LLM DeepEval uses to judge.
+
+    DeepEval defaults to OpenAI. Set DEEPEVAL_JUDGE=bedrock to judge with a
+    Bedrock model instead (no OpenAI key needed) — handy on AWS-only setups.
+    """
+    import os
+
+    if os.environ.get("DEEPEVAL_JUDGE", "").lower() == "bedrock":
+        from deepeval.models import AmazonBedrockModel
+        return AmazonBedrockModel(
+            model=os.environ.get("DEEPEVAL_JUDGE_MODEL",
+                                 "global.anthropic.claude-haiku-4-5-20251001-v1:0"),
+            region=os.environ.get("AWS_REGION", "us-east-1"),
+        )
+    return None  # DeepEval uses its OpenAI default
+
+
 def _deepeval_score(case, answer, tools_called):
     """Run DeepEval metrics and return a dict of metric_name -> score."""
     from deepeval.test_case import LLMTestCase, ToolCall
@@ -37,8 +55,16 @@ def _deepeval_score(case, answer, tools_called):
         expected_tools=[ToolCall(name=case.expected_tool)],
     )
 
-    relevancy = AnswerRelevancyMetric(threshold=0.7)
-    tool_correctness = ToolCorrectnessMetric()
+    judge = _judge_model()
+    # Pass the judge to both metrics. AnswerRelevancy uses it to score; recent
+    # DeepEval versions also initialize a model on ToolCorrectnessMetric even
+    # though its scoring is deterministic, so it needs one too.
+    if judge:
+        relevancy = AnswerRelevancyMetric(threshold=0.7, model=judge)
+        tool_correctness = ToolCorrectnessMetric(model=judge)
+    else:
+        relevancy = AnswerRelevancyMetric(threshold=0.7)
+        tool_correctness = ToolCorrectnessMetric()
 
     relevancy.measure(test_case)
     tool_correctness.measure(test_case)

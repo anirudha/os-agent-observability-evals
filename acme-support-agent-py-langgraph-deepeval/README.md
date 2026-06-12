@@ -27,6 +27,18 @@ pip install -e .
 export OPENAI_API_KEY=sk-...     # used by the agent and DeepEval's judge
 ```
 
+### Run everything on Bedrock (no OpenAI key)
+
+The agent and the DeepEval judge can both run on Amazon Bedrock — verified end to end:
+
+```bash
+pip install -e ".[bedrock]"             # adds langchain-aws + aiobotocore
+export ACME_LLM_PROVIDER=bedrock        # agent on Bedrock
+export DEEPEVAL_JUDGE=bedrock           # DeepEval judge on Bedrock
+export AWS_REGION=us-east-1             # plus AWS credentials
+# judge model override: DEEPEVAL_JUDGE_MODEL=...
+```
+
 ## Run
 
 ```bash
