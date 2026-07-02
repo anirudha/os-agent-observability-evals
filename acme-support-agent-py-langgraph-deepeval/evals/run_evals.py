@@ -85,9 +85,25 @@ def run_case(case) -> dict:
         called = list(called)
 
     scores = _deepeval_score(case, answer, called)
-    # emit DeepEval scores onto the trace
+    # emit DeepEval scores onto the trace with provenance
     for name, value in scores.items():
-        score(name=f"deepeval.{name}", value=value)
+        # Base attributes for all evals
+        attrs = {
+            "gen_ai.evaluation.evaluator.version": "1.0",
+            "gen_ai.evaluation.scope": "single_output",
+            "gen_ai.evaluation.reference_set.id": "acme-golden-dataset-v1"
+        }
+        
+        # Inject the specific provenance depending on the judge type
+        if name == "answer_relevancy":
+            attrs["gen_ai.evaluation.evaluator.id"] = "deepeval-relevancy-gpt4"
+            attrs["gen_ai.evaluation.evaluator.type"] = "llm_judge"
+        elif name == "tool_correctness":
+            attrs["gen_ai.evaluation.evaluator.id"] = "deepeval-tool-correctness"
+            attrs["gen_ai.evaluation.evaluator.type"] = "deterministic"
+            
+        score(name=f"deepeval.{name}", value=value, **attrs)
+
 
     passed = scores["answer_relevancy"] >= 0.7 and scores["tool_correctness"] >= 0.99
     return {"question": case.question, "answer": answer, "tools": called,
