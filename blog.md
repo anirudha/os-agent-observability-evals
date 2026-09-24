@@ -234,7 +234,9 @@ to see how little changes.
 > embedding calls, but the same `invoke_agent` → `chat` → `execute_tool` →
 > `retrieval`/`embeddings` spans (and eval scores) still land in OpenSearch. You only need
 > the observability stack from Part 2, not AWS/OpenAI/Anthropic creds. Unset it to go back
-> to the real provider.
+> to the real provider. The native-SDK standalone variants (LangGraph, Strands, AgentCore)
+> honor `ACME_MOCK` too; the DeepEval/Ragas variants can't run offline because their metrics
+> are LLM-judge calls (see *Bring your own eval library* in Part 6).
 
 > **Deploying to a managed runtime?** The
 > [`acme-support-agent-agentcore`](https://github.com/anirudha/os-agent-observability-evals/tree/main/acme-support-agent-agentcore)

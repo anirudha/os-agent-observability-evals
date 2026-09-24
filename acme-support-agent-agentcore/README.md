@@ -48,6 +48,13 @@ python -m evals.run_evals
 
 This evals the exact entrypoint code path that runs in production.
 
+**Run offline (no provider):** set `ACME_MOCK=1` to run with deterministic canned answers — no
+Bedrock call and no credentials, but the same span chain and eval scores still land in OpenSearch:
+
+```bash
+ACME_MOCK=1 python -m evals.run_evals
+```
+
 ## Deploy to AgentCore Runtime
 
 ```bash

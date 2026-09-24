@@ -16,7 +16,7 @@ import os
 from acme_shared import observe, enrich, Op
 from acme_shared.tools import lookup_order, check_inventory, search_policy, SYSTEM_PROMPT
 
-MODEL = os.environ.get("ACME_MODEL", "us.anthropic.claude-3-5-sonnet-20240620-v1:0")
+MODEL = os.environ.get("ACME_MODEL", "us.anthropic.claude-sonnet-4-5-20250929-v1:0")
 
 
 def _build_agent():

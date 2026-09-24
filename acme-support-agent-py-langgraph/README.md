@@ -45,6 +45,15 @@ python run.py "where is my order #1007?"
 python -m evals.run_evals
 ```
 
+**Run offline (no provider):** set `ACME_MOCK=1` to run the whole flow with deterministic canned
+answers — no LangChain/provider call and no credentials, but the same
+`invoke_agent → chat → execute_tool → retrieval/embeddings` spans and eval scores still land in
+OpenSearch (only the observability stack from Part 2 is needed):
+
+```bash
+ACME_MOCK=1 python -m evals.run_evals
+```
+
 ## What's shared vs. specific
 
 | Shared (from `acme-shared`) | Specific to this variant |

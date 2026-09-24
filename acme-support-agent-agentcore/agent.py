@@ -17,6 +17,8 @@ Docs: https://aws.amazon.com/bedrock/agentcore/
 
 from __future__ import annotations
 
+import os
+
 from bedrock_agentcore import BedrockAgentCoreApp
 
 from acme_shared import setup_observability, observe, enrich, Op
@@ -28,8 +30,8 @@ setup_observability(service_name="acme-support-agent")
 app = BedrockAgentCoreApp()
 
 # Default model is a Bedrock-hosted Claude; AgentCore runs with the task role's
-# AWS credentials, so no keys are needed in the container.
-MODEL = "anthropic.claude-3-5-sonnet-20240620-v1:0"
+# AWS credentials, so no keys are needed in the container. Override with ACME_MODEL.
+MODEL = os.environ.get("ACME_MODEL", "us.anthropic.claude-sonnet-4-5-20250929-v1:0")
 
 
 def _bedrock_tool_config():
@@ -57,7 +59,8 @@ def _run_agent(question: str, conversation_id: str) -> str:
 
     enrich(provider="aws.bedrock", model=MODEL,
            session_id=conversation_id)  # session_id -> gen_ai.conversation.id
-    client = boto3.client("bedrock-runtime")
+    client = boto3.client("bedrock-runtime",
+                          region_name=os.environ.get("AWS_REGION") or os.environ.get("AWS_DEFAULT_REGION"))
     messages = [{"role": "user", "content": [{"text": question}]}]
 
     for _ in range(5):
