@@ -21,6 +21,7 @@ import sys
 from acme_shared import setup_observability, score, full_dataset
 from acme_shared import observe, Op, enrich
 from acme_shared.tracking import install, track_case
+from acme_shared.evalmeta import new_run_ctx, case_attrs
 from acme_shared.langgraph_agent import handle_support_question
 from opentelemetry import trace
 from opentelemetry.sdk.trace.export import SimpleSpanProcessor, ConsoleSpanExporter
@@ -77,7 +78,7 @@ def _deepeval_score(case, answer, tools_called):
 
 
 @observe(op=Op.INVOKE_AGENT, name="eval_case")
-def run_case(case) -> dict:
+def run_case(case, run_ctx) -> dict:
     enrich(eval_question=case.question, expected_tool=case.expected_tool, eval_lib="deepeval")
     with track_case() as called:
         start = time.time()
@@ -86,15 +87,19 @@ def run_case(case) -> dict:
         called = list(called)
 
     scores = _deepeval_score(case, answer, called)
+    passed = scores["answer_relevancy"] >= 0.7 and scores["tool_correctness"] >= 0.99
+    # shared run/experiment/mode + case identity, so the dashboards filter these too
+    common = case_attrs(run_ctx, case, mode="offline", passed=passed)
     # emit DeepEval scores onto the trace with provenance
     for name, value in scores.items():
         # Base attributes for all evals
         attrs = {
             "gen_ai.evaluation.evaluator.version": "1.0",
             "gen_ai.evaluation.scope": "single_output",
-            "gen_ai.evaluation.reference_set.id": "acme-golden-dataset-v1"
+            "gen_ai.evaluation.reference_set.id": "acme-golden-dataset-v1",
+            **common,
         }
-        
+
         # Inject the specific provenance depending on the judge type
         if name == "answer_relevancy":
             attrs["gen_ai.evaluation.evaluator.id"] = "deepeval-relevancy-gpt4"
@@ -102,11 +107,12 @@ def run_case(case) -> dict:
         elif name == "tool_correctness":
             attrs["gen_ai.evaluation.evaluator.id"] = "deepeval-tool-correctness"
             attrs["gen_ai.evaluation.evaluator.type"] = "deterministic"
-            
+
         score(name=f"deepeval.{name}", value=value, attributes=attrs)
 
+    enrich(**{"test.suite.run.id": run_ctx["run_id"], "test.suite.name": run_ctx["experiment"],
+              "eval_mode": "offline"})
 
-    passed = scores["answer_relevancy"] >= 0.7 and scores["tool_correctness"] >= 0.99
     return {"question": case.question, "answer": answer, "tools": called,
             "scores": scores, "latency_s": round(elapsed, 2), "passed": passed}
 
@@ -121,7 +127,9 @@ def main() -> None:
     trace.get_tracer_provider().add_span_processor(SimpleSpanProcessor(ConsoleSpanExporter(out=out_file)))
 
     install()
-    results = [run_case(c) for c in full_dataset()]
+    run_ctx = new_run_ctx("deepeval")
+    print(f"  run_id={run_ctx['run_id']}  experiment={run_ctx['experiment']}  dataset={run_ctx['dataset']}")
+    results = [run_case(c, run_ctx) for c in full_dataset()]
     passed = sum(r["passed"] for r in results)
     print("\n" + "=" * 72)
     print(f"  ACME EVAL (LangGraph + DeepEval) — {passed}/{len(results)} passed")

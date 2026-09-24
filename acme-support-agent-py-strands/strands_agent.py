@@ -48,6 +48,11 @@ def _build_agent():
 
 @observe(op=Op.INVOKE_AGENT, name="acme-support-agent")
 def handle_support_question(question: str, conversation_id: str = "anonymous", **_) -> str:
+    from acme_shared.mock import mock_enabled
+    if mock_enabled():                     # offline: deterministic, no Strands/Bedrock
+        from acme_shared.mock_agent import run_turn
+        enrich(model="mock", provider="mock", session_id=conversation_id)
+        return run_turn(question)
     enrich(provider="strands", session_id=conversation_id)  # session_id -> gen_ai.conversation.id
     agent = _build_agent()
     result = agent(question)

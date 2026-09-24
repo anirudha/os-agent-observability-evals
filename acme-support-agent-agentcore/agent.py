@@ -47,6 +47,12 @@ _TOOLS = {"lookup_order": lookup_order, "check_inventory": check_inventory,
 
 @observe(op=Op.INVOKE_AGENT, name="acme-support-agent")
 def _run_agent(question: str, conversation_id: str) -> str:
+    from acme_shared.mock import mock_enabled
+    if mock_enabled():                     # offline: deterministic, no Bedrock
+        from acme_shared.mock_agent import run_turn
+        enrich(model="mock", provider="mock", session_id=conversation_id)
+        return run_turn(question)
+
     import boto3
 
     enrich(provider="aws.bedrock", model=MODEL,

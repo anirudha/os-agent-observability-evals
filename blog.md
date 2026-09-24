@@ -443,52 +443,6 @@ across traces:
 This is also where you catch the failure modes from Part 1: a trace with three `chat` spans and
 no `execute_tool` is the "looped and hallucinated" case made visible.
 
-### Prebuilt dashboards
-
-Rather than re-typing those PPL queries, this repo ships two curated dashboards built entirely
-from the same PPL/PromQL `explore` panels the stack uses — modeled on the eval + observability
-tools teams already know (Arize/Phoenix, Braintrust, LangSmith, Langfuse):
-
-- **Acme Agent — Run Details** — a health `state_timeline` (OK/Error per bucket), KPI cards with
-  trend sparklines (runs, success-rate gauge, error %, P95 latency, est. cost), latency
-  P50/P95/P99 + distribution, tokens by model, tokens in/out over time, tool analytics, and a
-  **Recent error traces** table whose trace IDs deep-link straight to the span waterfall. A
-  **Model** filter scopes the cost/token panels.
-- **Acme Agent — Evals** — case-level KPI cards (total cases, cases passed, mean / min judge
-  score) plus a pass-rate gauge, an outcome-breakdown donut, judge-score-by-case bars, a per-check
-  pass-rate `bar_gauge`, score/failure trend lines (including per-case-over-runs), a run-vs-run
-  **experiment comparison**, an **online-vs-offline** volume split, and per-case + failing-check
-  tables with a trace-ID drill-down to the failing run. **Check**, **Experiment** and **Mode**
-  filters govern every panel.
-
-![Acme Agent — Run Details dashboard](images/dashboard-run-details.png)
-*Run Details — agent health strip, RED-metric KPI cards with trend sparklines, latency percentiles, per-model tokens, tool analytics, and an error-traces table that deep-links into the span waterfall.*
-
-![Acme Agent — Evals dashboard](images/dashboard-evals.png)
-*Evals — total/passed cases, mean & min judge score, pass-rate gauge, outcome donut and judge-score-by-case, with Check / Experiment / Mode filters governing every panel.*
-
-Bring them up with the compose override (it also skips the bundled sample dashboards, so
-Dashboards shows only what this tutorial needs):
-
-```bash
-cd observability-stack
-docker compose -f docker-compose.yml \
-  -f ../acme-support-agent/dashboards/docker-compose.dashboards.yml up -d
-```
-
-To populate them with a realistic mix of successes and failures — no cloud credentials needed —
-run the offline generator (it reuses the `acme-support-agent/python/.venv` you created in Part 3),
-then refresh after ~90s of Data Prepper ingestion:
-
-```bash
-cd ..    # back to the repo root (the previous block left you in observability-stack/)
-./acme-support-agent/dashboards/demo-data.sh
-```
-
-See [`acme-support-agent/dashboards/README.md`](acme-support-agent/dashboards/README.md) for the
-panel-by-panel guide, the fault-injection matrix, and the `OSD_PUBLIC_URL` note for serving the
-trace drill-down behind a remote/tunnel URL.
-
 ---
 
 ## Part 6 — Evaluate
@@ -542,6 +496,55 @@ ACME_MOCK=1 python -m evals.run_evals
 The loop: **run evals → read the failures in Dashboards → fix the prompt/tools → re-run.**
 Because scores are emitted as spans, "did v2 of the prompt regress on cost or correctness?" is
 just another PPL query over your eval runs.
+
+### Prebuilt dashboards
+
+Now that you've run the agent (Part 3) and the eval suite above, visualize both without
+re-typing PPL: this repo ships two curated dashboards built entirely from the same PPL/PromQL
+`explore` panels the stack uses — modeled on the eval + observability tools teams already know
+(Arize/Phoenix, Braintrust, LangSmith, Langfuse). Bring them up **after** you have data, since
+the eval panels key off fields that only exist once an eval run has landed:
+
+- **Acme Agent — Run Details** — a health `state_timeline` (OK/Error per bucket), KPI cards with
+  trend sparklines (runs, success-rate gauge, error %, P95 latency, est. cost), latency
+  P50/P95/P99 + distribution, tokens by model, tokens in/out over time, tool analytics, and a
+  **Recent error traces** table whose trace IDs deep-link straight to the span waterfall. A
+  **Model** filter scopes the cost/token panels.
+- **Acme Agent — Evals** — case-level KPI cards (total cases, cases passed, mean / min judge
+  score) plus a pass-rate gauge, an outcome-breakdown donut, judge-score-by-case bars, a per-check
+  pass-rate `bar_gauge`, score/failure trend lines (including per-case-over-runs), a run-vs-run
+  **experiment comparison**, an **online-vs-offline** volume split, and per-case + failing-check
+  tables with a trace-ID drill-down to the failing run. **Check**, **Experiment** and **Mode**
+  filters govern every panel.
+
+![Acme Agent — Run Details dashboard](images/dashboard-run-details.png)
+*Run Details — agent health strip, RED-metric KPI cards with trend sparklines, latency percentiles, per-model tokens, tool analytics, and an error-traces table that deep-links into the span waterfall.*
+
+![Acme Agent — Evals dashboard](images/dashboard-evals.png)
+*Evals — total/passed cases, mean & min judge score, pass-rate gauge, outcome donut and judge-score-by-case, with Check / Experiment / Mode filters governing every panel.*
+
+Bring them up with the compose override (it also skips the bundled sample dashboards, so
+Dashboards shows only what this tutorial needs):
+
+```bash
+cd observability-stack
+docker compose -f docker-compose.yml \
+  -f ../acme-support-agent/dashboards/docker-compose.dashboards.yml up -d
+```
+
+You already generated eval data above. For a fuller mix of successes, injected failures, and a
+few experiment runs — no cloud credentials needed — run the offline generator (it reuses the
+`acme-support-agent/python/.venv` from Part 3), then refresh after ~90s of Data Prepper ingestion:
+
+```bash
+# back at the repo root (the compose block above left you in observability-stack/)
+cd ..
+./acme-support-agent/dashboards/demo-data.sh
+```
+
+See [`acme-support-agent/dashboards/README.md`](acme-support-agent/dashboards/README.md) for the
+panel-by-panel guide, the fault-injection matrix, and the `OSD_PUBLIC_URL` note for serving the
+trace drill-down behind a remote/tunnel URL.
 
 ### Bring your own eval library
 

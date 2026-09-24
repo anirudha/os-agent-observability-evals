@@ -67,6 +67,11 @@ def handle_support_question(
     history: list[dict] | None = None,
 ) -> str:
     """invoke_agent span. chat + execute_tool child spans come from the graph + tools."""
+    from .mock import mock_enabled
+    if mock_enabled():                     # offline: deterministic, no LangChain/provider
+        from .mock_agent import run_turn
+        enrich(model="mock", provider="mock", session_id=conversation_id)
+        return run_turn(question)
     enrich(model=MODEL, provider=PROVIDER,
            session_id=conversation_id)  # session_id -> gen_ai.conversation.id
     agent = build_agent()

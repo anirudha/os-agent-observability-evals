@@ -14,13 +14,14 @@ import time
 from acme_shared import setup_observability, score, full_dataset, criteria
 from acme_shared import observe, Op, enrich
 from acme_shared.tracking import install, track_case
+from acme_shared.evalmeta import new_run_ctx, case_attrs
 
 # Import the entrypoint's underlying agent function (no HTTP server needed for evals).
 from agent import _run_agent
 
 
 @observe(op=Op.INVOKE_AGENT, name="eval_case")
-def run_case(case) -> dict:
+def run_case(case, run_ctx) -> dict:
     enrich(eval_question=case.question, expected_tool=case.expected_tool)
     with track_case() as called:
         start = time.time()
@@ -34,9 +35,13 @@ def run_case(case) -> dict:
     trajectory = 1.0 if actual_traj[: len(case.golden_trajectory)] == case.golden_trajectory else 0.0
     latency_ok = criteria.judge_latency(elapsed)
 
-    for name, value in [("answer_correctness", correctness), ("right_tool", right_tool),
-                        ("trajectory_match", trajectory), ("latency_ok", latency_ok)]:
-        score(name=name, value=value)
+    checks = {"answer_correctness": correctness, "right_tool": right_tool,
+              "trajectory_match": trajectory, "latency_ok": latency_ok}
+    common = case_attrs(run_ctx, case, checks)
+    for name, value in checks.items():
+        score(name=name, value=value, attributes=common)
+    enrich(**{"test.suite.run.id": run_ctx["run_id"], "test.suite.name": run_ctx["experiment"],
+              "eval_mode": "offline"})
 
     return {"question": case.question, "answer": answer, "tools": called,
             "correctness": correctness, "trajectory": trajectory,
@@ -47,7 +52,9 @@ def run_case(case) -> dict:
 def main() -> None:
     setup_observability(service_name="acme-support-agent")
     install()
-    results = [run_case(c) for c in full_dataset()]
+    run_ctx = new_run_ctx("agentcore")
+    print(f"  run_id={run_ctx['run_id']}  experiment={run_ctx['experiment']}  dataset={run_ctx['dataset']}")
+    results = [run_case(c, run_ctx) for c in full_dataset()]
     passed = sum(r["passed"] for r in results)
     print("\n" + "=" * 72)
     print(f"  ACME EVAL (AgentCore Runtime) — {passed}/{len(results)} passed")

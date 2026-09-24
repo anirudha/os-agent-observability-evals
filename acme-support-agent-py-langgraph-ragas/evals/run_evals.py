@@ -20,6 +20,7 @@ import time
 from acme_shared import setup_observability, score, full_dataset
 from acme_shared import observe, Op, enrich
 from acme_shared.tracking import install, track_case
+from acme_shared.evalmeta import new_run_ctx, case_attrs
 from acme_shared.langgraph_agent import handle_support_question
 
 
@@ -67,7 +68,7 @@ def _tool_accuracy(case, tools_called) -> float:
 
 
 @observe(op=Op.INVOKE_AGENT, name="eval_case")
-def run_case(case) -> dict:
+def run_case(case, run_ctx) -> dict:
     enrich(eval_question=case.question, expected_tool=case.expected_tool, eval_lib="ragas")
     with track_case() as called:
         start = time.time()
@@ -78,10 +79,13 @@ def run_case(case) -> dict:
     correctness = _ragas_correctness(case, answer)
     tool_accuracy = _tool_accuracy(case, called)
 
-    score(name="ragas.correctness", value=correctness)
-    score(name="ragas.tool_call_accuracy", value=tool_accuracy)
-
     passed = correctness >= 0.99 and tool_accuracy >= 0.99
+    common = case_attrs(run_ctx, case, mode="offline", passed=passed)
+    score(name="ragas.correctness", value=correctness, attributes=common)
+    score(name="ragas.tool_call_accuracy", value=tool_accuracy, attributes=common)
+    enrich(**{"test.suite.run.id": run_ctx["run_id"], "test.suite.name": run_ctx["experiment"],
+              "eval_mode": "offline"})
+
     return {"question": case.question, "answer": answer, "tools": called,
             "correctness": correctness, "tool_accuracy": tool_accuracy,
             "latency_s": round(elapsed, 2), "passed": passed}
@@ -90,7 +94,9 @@ def run_case(case) -> dict:
 def main() -> None:
     setup_observability(service_name="acme-support-agent")
     install()
-    results = [run_case(c) for c in full_dataset()]
+    run_ctx = new_run_ctx("ragas")
+    print(f"  run_id={run_ctx['run_id']}  experiment={run_ctx['experiment']}  dataset={run_ctx['dataset']}")
+    results = [run_case(c, run_ctx) for c in full_dataset()]
     passed = sum(r["passed"] for r in results)
     print("\n" + "=" * 72)
     print(f"  ACME EVAL (LangGraph + Ragas) — {passed}/{len(results)} passed")
