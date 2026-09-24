@@ -18,6 +18,11 @@ in OpenSearch — no separate silo.
 
 ## Setup
 
+> **No offline/mock mode for this variant.** DeepEval's `AnswerRelevancyMetric` is an
+> **LLM-as-judge** call, so it always needs a real judge model — either `OPENAI_API_KEY` or
+> Bedrock (`DEEPEVAL_JUDGE=bedrock`). `ACME_MOCK=1` only mocks the *agent under test*, not the
+> judge, so unlike the native-SDK variants this one can't run credential-free.
+
 **Stack:** use the pinned `observability-stack` submodule at the repo root —
 `cd observability-stack && docker compose up -d`.
 

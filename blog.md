@@ -561,6 +561,12 @@ different eval libraries:
 - [`acme-support-agent-py-langgraph-ragas`](https://github.com/anirudha/os-agent-observability-evals/tree/main/acme-support-agent-py-langgraph-ragas)
   — Ragas' `AspectCritic("correctness")` + tool-call accuracy, emitted as `ragas.*` scores.
 
+> **These two can't run fully offline.** Unlike the native SDK path, DeepEval's
+> `AnswerRelevancyMetric` and Ragas' `AspectCritic` **are LLM-as-judge calls**, so they need a
+> real judge model — set `OPENAI_API_KEY`, or judge on Bedrock (`DEEPEVAL_JUDGE=bedrock` /
+> `RAGAS_JUDGE=bedrock`). `ACME_MOCK=1` only mocks the *agent under test*, not the judge, so it
+> doesn't make these variants credential-free the way the native runners are.
+
 The pattern is the same in both:
 
 ```python
