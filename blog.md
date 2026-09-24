@@ -637,6 +637,28 @@ journey is a loop, not a line.
 
 ---
 
+## Troubleshooting
+
+Things that actually trip people up, and the one-line fix:
+
+| Symptom | Cause → fix |
+|---|---|
+| Evals dashboard panels error **`FIELD_NOT_FOUND: attributes.test.suite.name`** | No eval run has landed the `test.*`/`eval_mode` fields yet (fresh stack, or an older variant runner). Run `python -m evals.run_evals` (or `demo-data.sh`), wait ~90s, refresh. Bring dashboards up **after** you have eval data — that's why they're in Part 6, not Part 5. |
+| Panels are empty / **"No results found"** | No telemetry in the window yet, or the time picker is too narrow. Run the agent + evals, then set the range to **Last 24 hours**. |
+| `zsh: no matches found` on a `curl` | The URL has a `?` (zsh glob). **Quote it**: `'https://localhost:9200/_cat/indices?v'`. |
+| Bedrock **`ResourceNotFoundException: This model version has reached the end of its life`** | The model id is EOL. Set `ACME_MODEL` to a current one, e.g. `us.anthropic.claude-sonnet-4-5-20250929-v1:0`. |
+| `botocore … **NoRegionError: You must specify a region**` | Export `AWS_REGION` (and `AWS_DEFAULT_REGION` for raw-boto3 paths like the AgentCore variant). |
+| DeepEval judge: **`No module named 'aiobotocore'`** | The Bedrock judge needs it — `pip install -e ".[bedrock]"` (or `DEEPEVAL_JUDGE=` unset to use OpenAI). |
+| Ragas: **`ModuleNotFoundError: langchain_community.chat_models.vertexai`** | Version skew. Install the variant's **pinned** deps in its **own** venv (`pip install -e .` in the ragas dir) — it can't share the LangGraph-1.x environment. |
+| `cost` always passes / **tokens = 0** on non-Bedrock frameworks | Only the Bedrock adapter records token usage today; other adapters report 0 until they call `record_usage`. |
+| Collector `send_failed` line missing from `:8888/metrics` | It's only emitted once non-zero — seeing only `accepted` means nothing is being dropped. |
+| Data Prepper logs **`no write index is defined for alias [otel-v1-apm-span]`** and 0 docs ingest | The alias lost its write index (e.g. an index was deleted). Re-point it: `POST _aliases {"actions":[{"add":{"index":"otel-v1-apm-span-000001","alias":"otel-v1-apm-span","is_write_index":true}}]}`. |
+| After an index rollover, **every** panel errors `UnsupportedOperationException` | An empty rolled-over `otel-v1-apm-span-00000N` has a conflicting mapping; re-point the write alias to the populated index (above), then delete the empty one. |
+| Dashboard shows stale panels after re-running the init | Browser cache — hard-reload the page. |
+| Variant only mocks the agent but its eval still calls a model | DeepEval/Ragas metrics **are** LLM judges — `ACME_MOCK` can't make those two credential-free; the LangGraph/Strands/AgentCore native variants do run fully offline. |
+
+---
+
 ## Recap
 
 | Part | What you did | Acme made it concrete by… |
